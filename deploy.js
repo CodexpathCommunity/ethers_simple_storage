@@ -1,19 +1,36 @@
-const ethers = require("ethers")
-const fs = require("fs-extra")
+const ethers = require("ethers");
+const fs = require("fs-extra");
+require(dotenv).config()
 
+async function main() {
+  const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+  const wallet = new ethers.Wallet(
+    process.env.PRIVATE_KEY,
+    provider
+  );
+  const abi = fs.readFileSync("./SimpleStorage_sol_SimpleStorage.abi", "utf-8");
+  const binary = fs.readFileSync(
+    "./SimpleStorage_sol_SimpleStorage.bin",
+    "utf-8"
+  );
 
-async function main(){
-    //http://127.0.0.1:7545
-    const node_url = "http://127.0.0.1:7545";
-    const provider = new ethers.providers.JsonRpcProvider(node_url);
-    const wallet = new ethers.Wallet("917297fde3c86d688ef11def3d66b82be91a88e515235606d1623d4ea38d718a", provider);
-    const abi = fs.readFileSync("./SimpleStorage_sol_SimpleStorage.abi", "utf-8")
-    const binary = fs.readFileSync("./SimpleStorage_sol_SimpleStorage.bin", "utf-8")
-    const contractFactory = new ethers.contractFactory(abi, binary, wallet)
+  const contractFactory = new ethers.ContractFactory(abi, binary, wallet);
+  console.log("please wait deploying ...");
+  const contract = await contractFactory.deploy();
+await contract.deployTransaction.wait(1);
 
-
-
-    
+  let currentFavoriteNumber = await contract.retrieve()
+    console.log(`Current Favorite Number: ${currentFavoriteNumber}`)
+    console.log("Updating favorite number...")
+    let transactionResponse = await contract.store(7)
+    let transactionReceipt = await transactionResponse.wait()
+    currentFavoriteNumber = await contract.retrieve()
+    console.log(`New Favorite Number: ${currentFavoriteNumber}`)
 }
 
-main().then(() => process.exit(0)).catch((error) => )
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
